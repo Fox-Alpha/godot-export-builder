@@ -7,6 +7,7 @@
 ################################################################################
 
 set -o pipefail
+#set -x
 
 # Color codes for output
 RED='\033[0;31m'
@@ -141,9 +142,14 @@ detect_os_short() {
 
 detect_godot_executable() {
     # Try common godot names
-    for cmd in godot godot4 godot3 /opt/godot/godot /snap/bin/godot; do
+    for cmd in godot godot4 gd4 godot3 gd3 /opt/godot/godot /snap/bin/godot; do
         if command -v "$cmd" &> /dev/null; then
-            echo "$cmd"
+            if [ -L "$cmd" ]; then
+                FILE=$(readlink -f "$(which "$cmd")")
+            else
+                FILE=$(which "$cmd")
+            fi
+            echo "$FILE"
             return 0
         fi
     done
@@ -556,12 +562,12 @@ main() {
             ;;
         --init)
             log_section "Generating Default Configuration"
-            if generate_default_config; then
+            if generate_default_config -eq 0; then
                 log_info "build_config.json created successfully"
                 log_info "Edit the file to customize your build settings"
                 exit 0
             else
-                log_error "Failed to generate configuration"
+                log_warn "--init warn: Failed to generate configuration"
                 exit 1
             fi
             ;;
@@ -579,6 +585,7 @@ main() {
             ;;
     esac
     
+    log_section "Godot Project Build & Export Script"
     # Find project directory
     PROJECT_DIR=$(find_project_directory) || exit 1
     cd "$PROJECT_DIR" || exit 1
