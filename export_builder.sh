@@ -89,8 +89,7 @@ EOF
 ################################################################################
 
 find_project_directory() {
-    #local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local current_dir="$(pwd)"
+    local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local check_dir="$current_dir"
     
     # Search upwards for project.godot
