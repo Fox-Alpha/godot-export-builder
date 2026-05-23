@@ -30,10 +30,10 @@ brew install jq
 
 ```bash
 # Script ausführbar machen
-chmod +x cli_work.sh
+chmod +x export_builder.sh
 
 # Konfiguration für dein Projekt initialisieren
-./cli_work.sh --init
+./export_builder.sh --init
 ```
 
 `--init` erstellt `build_config.json` mit automatisch erkanntem Godot-Pfad, Godot-Version, Projektname und aktuellem Betriebssystem als Standard-Profil.
@@ -42,16 +42,16 @@ chmod +x cli_work.sh
 
 ```bash
 # Hilfe anzeigen
-./cli_work.sh --help
+./export_builder.sh --help
 
 # Konfiguration generieren
-./cli_work.sh --init
+./export_builder.sh --init
 
 # Build ausführen (nutzt build_config.json)
-./cli_work.sh
+./export_builder.sh
 
 # Script-Version anzeigen
-./cli_work.sh --version
+./export_builder.sh --version
 ```
 
 Das Script führt automatisch durch: Konfigurationsvalidierung → Godot-Versionsprüfung → Ressourcen-Import → Export aller Profile.
