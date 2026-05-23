@@ -18,16 +18,16 @@ Erweiterte Beispiele, Multi-Profile, CLI-Parameter und Fehlerbehandlung.
 
 ```bash
 # Hilfe anzeigen
-./cli_work.sh --help
+./export_builder.sh --help
 
 # Konfiguration generieren
-./cli_work.sh --init
+./export_builder.sh --init
 
 # Build ausführen (nutzt build_config.json)
-./cli_work.sh
+./export_builder.sh
 
 # Script-Version anzeigen
-./cli_work.sh --version
+./export_builder.sh --version
 ```
 
 ---
@@ -232,7 +232,7 @@ Das Script gibt klare Fehlermeldungen aus und bricht mit Exit-Code ab.
 
 ```
 [ERROR] build_config.json nicht gefunden
-[ERROR] Führen Sie './cli_work.sh --init' aus, um eine Standard-Konfiguration zu generieren
+[ERROR] Führen Sie './export_builder.sh --init' aus, um eine Standard-Konfiguration zu generieren
 ```
 
 ```
