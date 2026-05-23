@@ -18,7 +18,7 @@ Vollständige Referenz aller Parameter in `build_config.json`.
 project_root/
 ├── project.godot
 ├── build_config.json          ← Konfigurationsdatei
-├── cli_work.sh                ← Das Script
+├── export_builder.sh                ← Das Script
 └── .exports/                  ← Standard-Export-Verzeichnis (von Godot ignoriert)
     ├── Windows/
     ├── Linux/
@@ -27,7 +27,7 @@ project_root/
 
 Konfiguration generieren (empfohlen):
 ```bash
-./cli_work.sh --init
+./export_builder.sh --init
 ```
 
 Oder manuell erstellen:
