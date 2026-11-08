@@ -166,7 +166,8 @@ detect_godot_executable() {
 
 # Löst einen reinen Befehlsnamen aus godot.path über den PATH auf.
 resolve_godot_path() {
-    local path=$1
+    local path
+    path=$(expand_home "$1")
 
     if [[ "$path" != */* ]] && command -v "$path" &> /dev/null; then
         command -v "$path"
@@ -441,8 +442,20 @@ generate_output_filename() {
 # RESOLVE EXPORT PATH
 ################################################################################
 
+# Ersetzt ein führendes ~ durch das Home-Verzeichnis, jq liefert es unverändert.
+expand_home() {
+    case "$1" in
+        "~") echo "$HOME" ;;
+        "~/"*) echo "$HOME/${1#\~/}" ;;
+        *) echo "$1" ;;
+    esac
+}
+
 resolve_export_path() {
-    local export_path=$1
+    local export_path
+    export_path=$(expand_home "$1")
+    local export_root
+    export_root=$(expand_home "$EXPORT_ROOT")
     
     if [ -n "$export_path" ]; then
         # Use override path
@@ -455,12 +468,12 @@ resolve_export_path() {
         fi
     else
         # Use export_root
-        if [[ "$EXPORT_ROOT" = /* ]]; then
+        if [[ "$export_root" = /* ]]; then
             # Absolute path
-            echo "$EXPORT_ROOT"
+            echo "$export_root"
         else
             # Relative to project dir
-            echo "$PROJECT_DIR/$EXPORT_ROOT"
+            echo "$PROJECT_DIR/$export_root"
         fi
     fi
 }
