@@ -442,6 +442,45 @@ generate_output_filename() {
 }
 
 ################################################################################
+# READ EXPORT PRESET
+################################################################################
+
+# Liest einen Wert eines Presets aus der export_presets.cfg (auch aus dessen Abschnitt .options).
+get_preset_value() {
+    local preset=$1
+    local key=$2
+
+    WANT="name=\"$preset\"" KEY="$key=" awk '
+        /^\[preset\.[0-9]+\]$/ { active = 0 }
+        $0 == ENVIRON["WANT"] { active = 1; next }
+        active && index($0, ENVIRON["KEY"]) == 1 {
+            value = substr($0, length(ENVIRON["KEY"]) + 1)
+            gsub(/^"|"$/, "", value)
+            print value
+            exit
+        }
+    ' "$PROJECT_DIR/export_presets.cfg" 2>/dev/null
+}
+
+# Liefert die Dateiendung zur Plattform des Presets, leer bei unbekannter Plattform.
+get_output_extension() {
+    local platform=$1
+    local preset=$2
+    local arch
+
+    case "$platform" in
+        Windows*) echo ".exe" ;;
+        Linux*)
+            arch=$(get_preset_value "$preset" "binary_format/architecture")
+            echo ".${arch:-x86_64}"
+            ;;
+        Web) echo ".html" ;;
+        macOS) echo ".zip" ;;
+        Android) echo ".apk" ;;
+    esac
+}
+
+################################################################################
 # RESOLVE EXPORT PATH
 ################################################################################
 
@@ -556,7 +595,7 @@ execute_export() {
 
 check_export_output() {
     local build_project=$1
-    local profile_name=$2
+    local platform=$2
     
     if [ ! -f "$build_project" ]; then
         log_error "Export binary not found: $build_project"
@@ -567,7 +606,7 @@ check_export_output() {
     log_info "Export successful! Binary size: $file_size"
     
     # Make Linux binary executable
-    if [[ "$profile_name" == Linux* ]] || [ "$profile_name" = "Mac" ]; then
+    if [[ "$platform" == Linux* ]]; then
         chmod +x "$build_project"
         log_info "Made binary executable"
     fi
@@ -581,10 +620,10 @@ check_export_output() {
 
 prompt_run_binary() {
     local build_project=$1
-    local profile_name=$2
+    local platform=$2
     
     # Skip for Web
-    if [ "$profile_name" = "Web" ]; then
+    if [ "$platform" = "Web" ]; then
         return 0
     fi
     
@@ -734,17 +773,20 @@ main() {
             fi
         fi
         
-        # Add suffix and extension
-        if [[ "$PROFILE_NAME" == Windows* ]]; then
-            BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}.exe"
-        elif [[ "$PROFILE_NAME" == Linux* ]]; then
-            BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}.x86_64"
-        elif [ "$PROFILE_NAME" = "Web" ]; then
-            BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}"
-        else
-            BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}"
+        # Plattform und Endung kommen aus dem Preset, sein Name ist frei wählbar.
+        PRESET_PLATFORM=$(get_preset_value "$PROFILE_NAME" "platform")
+        if [ -z "$PRESET_PLATFORM" ]; then
+            log_error "Preset '$PROFILE_NAME' not found in export_presets.cfg"
+            exit 99
         fi
-        
+        OUTPUT_EXTENSION=$(get_output_extension "$PRESET_PLATFORM" "$PROFILE_NAME")
+        if [ -z "$OUTPUT_EXTENSION" ]; then
+            log_warn "No known file extension for platform: $PRESET_PLATFORM"
+        fi
+
+        BUILD_BASE="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}"
+        BUILD_BIN="${BUILD_BASE}${OUTPUT_EXTENSION}"
+
         BUILD_PROJECT="$PROFILE_FOLDER/$BUILD_BIN"
         BUILD_LOG="$PROFILE_FOLDER/${PROJECT_NAME}_export.log.txt"
         
@@ -759,13 +801,13 @@ main() {
         fi
         
         # Verify
-        if ! check_export_output "$BUILD_PROJECT" "$PROFILE_NAME"; then
+        if ! check_export_output "$BUILD_PROJECT" "$PRESET_PLATFORM"; then
             exit 99
         fi
         
         # Offer to run
         if [ $PROFILE_COUNT -eq 1 ]; then
-            prompt_run_binary "$BUILD_PROJECT" "$PROFILE_NAME"
+            prompt_run_binary "$BUILD_PROJECT" "$PRESET_PLATFORM"
         fi
         
         echo ""
