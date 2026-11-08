@@ -29,7 +29,8 @@ log_warn() {
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    # Nach stderr: Fehler aus Funktionen, die per $(...) aufgerufen werden, bleiben sichtbar.
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 log_section() {
@@ -88,11 +89,10 @@ EOF
 # FIND PROJECT DIRECTORY
 ################################################################################
 
-find_project_directory() {
-    local current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local check_dir="$current_dir"
-    
-    # Search upwards for project.godot
+# Sucht project.godot vom angegebenen Ordner aus nach oben und gibt den Fund aus.
+search_upwards_for_project() {
+    local check_dir=$1
+
     while [ "$check_dir" != "/" ]; do
         if [ -f "$check_dir/project.godot" ]; then
             echo "$check_dir"
@@ -100,13 +100,20 @@ find_project_directory() {
         fi
         check_dir=$(dirname "$check_dir")
     done
-    
-    # If not found upwards, check current dir
-    if [ -f "$current_dir/project.godot" ]; then
-        echo "$current_dir"
+
+    return 1
+}
+
+find_project_directory() {
+    # Zuerst der aktuelle Ordner, damit der Aufruf über einen Symlink im PATH funktioniert.
+    # Danach der Ordner des Scripts, für Kopien, die direkt im Projekt liegen.
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    if search_upwards_for_project "$PWD" || search_upwards_for_project "$script_dir"; then
         return 0
     fi
-    
+
     log_error "Could not find project.godot"
     log_error "Please run this script from the project directory or a subdirectory"
     return 1
@@ -183,7 +190,9 @@ get_project_name_from_dir() {
 ################################################################################
 
 generate_default_config() {
-    local project_dir=$(find_project_directory) || return 1
+    # Deklaration getrennt: "local x=$(...)" liefert immer 0 und verdeckt den Fehler der Suche.
+    local project_dir
+    project_dir=$(find_project_directory) || return 1
     local project_name=$(get_project_name_from_dir "$project_dir")
     local godot_path=$(detect_godot_executable) || godot_path="/path/to/godot"
     local godot_version=$(get_godot_version "$godot_path") || godot_version="4.6"
@@ -197,7 +206,7 @@ generate_default_config() {
         *) default_profile="Windows" ;;
     esac
     
-    cat > build_config.json << EOF
+    cat > "$project_dir/build_config.json" << EOF
 {
   "godot": {
     "path": "$godot_path",
