@@ -68,7 +68,7 @@ DESCRIPTION:
     - Linux, Windows, and Web platforms
 
 EXAMPLES:
-    # Generate default configuration (interactive)
+    # Generate default configuration
     ./cli_work.sh --init
     
     # Build using existing configuration
@@ -202,6 +202,12 @@ generate_default_config() {
     # Deklaration getrennt: "local x=$(...)" liefert immer 0 und verdeckt den Fehler der Suche.
     local project_dir
     project_dir=$(find_project_directory) || return 1
+
+    if [ -f "$project_dir/build_config.json" ]; then
+        log_error "$project_dir/build_config.json already exists, not overwriting it"
+        return 1
+    fi
+
     local project_name=$(get_default_project_name "$project_dir")
     local godot_path=$(detect_godot_executable) || godot_path="/path/to/godot"
     local godot_version=$(get_godot_version "$godot_path") || godot_version="4.6"
