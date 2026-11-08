@@ -214,6 +214,7 @@ Verfügbar in `build.output_filename` und `profiles[].output_filename`:
 |---|---|---|
 | `{project}` | `MeinSpiel` | `build.project_name` |
 | `{version_suffix}` | `_v1.0` | `build.version_suffix` |
+| `{version}` | `0.20.0` | `config/version` aus der `project.godot` |
 | `{godot_version}` | `4.6` | `godot.version` oder Laufzeit |
 | `{date}` | `20260227` | Aktuelles Datum (YYYYMMDD) |
 | `{os}` | `Win`, `Lin`, `Mac` | Vom System erkannt |

@@ -498,6 +498,7 @@ The `output_filename` template supports the following placeholders:
 |-------------|-------------|-----------------|-------|
 | `{project}` | Project name | `MiniShooterGame` | From `build.project_name` |
 | `{version_suffix}` | Version suffix | `_alpha9` | From `build.version_suffix` |
+| `{version}` | Game version | `0.20.0` | From `config/version` in `project.godot` |
 | `{godot_version}` | Godot version | `4.6` | From `godot.version` or runtime |
 | `{date}` | Current date | `20260227` | Format: YYYYMMDD |
 | `{os}` | Operating system (short) | `Win`, `Lin`, `Mac` | Detected from system |
