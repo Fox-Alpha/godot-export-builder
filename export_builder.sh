@@ -7,6 +7,8 @@
 ################################################################################
 
 set -o pipefail
+# Ab Bash 5.2 stünde & im Ersetzungstext von ${var//a/b} für den Treffer, das verfälscht Namen.
+shopt -u patsub_replacement 2>/dev/null || true
 #set -x
 
 # Color codes for output
