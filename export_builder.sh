@@ -217,8 +217,9 @@ generate_default_config() {
     fi
 
     local project_name=$(get_default_project_name "$project_dir")
-    local godot_path=$(detect_godot_executable) || godot_path="/path/to/godot"
-    local godot_version=$(get_godot_version "$godot_path") || godot_version="4.6"
+    local godot_path godot_version
+    godot_path=$(detect_godot_executable) || godot_path="/path/to/godot"
+    godot_version=$(get_godot_version "$godot_path") || godot_version="4.6"
     local os=$(detect_os)
     
     local default_profile=""
