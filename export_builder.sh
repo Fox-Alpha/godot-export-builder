@@ -153,19 +153,26 @@ detect_os_short() {
 ################################################################################
 
 detect_godot_executable() {
-    # Try common godot names
-    for cmd in godot godot4 gd4 godot3 gd3 /opt/godot/godot /snap/bin/godot; do
+    # Nur Godot 4: Die Export-Parameter des Scripts gibt es in Godot 3 nicht.
+    # Der Fund bleibt unaufgelöst, ein Symlink zeigt so auch künftig auf die aktuelle Engine.
+    for cmd in godot godot4 gd4 /opt/godot/godot; do
         if command -v "$cmd" &> /dev/null; then
-            if [ -L "$cmd" ]; then
-                FILE=$(readlink -f "$(which "$cmd")")
-            else
-                FILE=$(which "$cmd")
-            fi
-            echo "$FILE"
+            command -v "$cmd"
             return 0
         fi
     done
     return 1
+}
+
+# Löst einen reinen Befehlsnamen aus godot.path über den PATH auf.
+resolve_godot_path() {
+    local path=$1
+
+    if [[ "$path" != */* ]] && command -v "$path" &> /dev/null; then
+        command -v "$path"
+    else
+        echo "$path"
+    fi
 }
 
 get_godot_version() {
@@ -647,6 +654,8 @@ main() {
             exit 1
         }
         log_info "Auto-detected Godot at: $GODOT_PATH"
+    else
+        GODOT_PATH=$(resolve_godot_path "$GODOT_PATH")
     fi
     
     # Verify Godot version
