@@ -7,6 +7,8 @@
 ################################################################################
 
 set -o pipefail
+# Ab Bash 5.2 stünde & im Ersetzungstext von ${var//a/b} für den Treffer, das verfälscht Namen.
+shopt -u patsub_replacement 2>/dev/null || true
 #set -x
 
 # Color codes for output
@@ -68,7 +70,7 @@ DESCRIPTION:
     - Linux, Windows, and Web platforms
 
 EXAMPLES:
-    # Generate default configuration (interactive)
+    # Generate default configuration
     ./cli_work.sh --init
     
     # Build using existing configuration
@@ -96,6 +98,11 @@ search_upwards_for_project() {
     while [ "$check_dir" != "/" ]; do
         if [ -f "$check_dir/project.godot" ]; then
             echo "$check_dir"
+            return 0
+        fi
+        # Standardstruktur: Das Godot-Projekt liegt im Unterordner src/.
+        if [ -f "$check_dir/src/project.godot" ]; then
+            echo "$check_dir/src"
             return 0
         fi
         check_dir=$(dirname "$check_dir")
@@ -148,19 +155,27 @@ detect_os_short() {
 ################################################################################
 
 detect_godot_executable() {
-    # Try common godot names
-    for cmd in godot godot4 gd4 godot3 gd3 /opt/godot/godot /snap/bin/godot; do
+    # Nur Godot 4: Die Export-Parameter des Scripts gibt es in Godot 3 nicht.
+    # Der Fund bleibt unaufgelöst, ein Symlink zeigt so auch künftig auf die aktuelle Engine.
+    for cmd in godot godot4 gd4 /opt/godot/godot; do
         if command -v "$cmd" &> /dev/null; then
-            if [ -L "$cmd" ]; then
-                FILE=$(readlink -f "$(which "$cmd")")
-            else
-                FILE=$(which "$cmd")
-            fi
-            echo "$FILE"
+            command -v "$cmd"
             return 0
         fi
     done
     return 1
+}
+
+# Löst einen reinen Befehlsnamen aus godot.path über den PATH auf.
+resolve_godot_path() {
+    local path
+    path=$(expand_home "$1")
+
+    if [[ "$path" != */* ]] && command -v "$path" &> /dev/null; then
+        command -v "$path"
+    else
+        echo "$path"
+    fi
 }
 
 get_godot_version() {
@@ -180,9 +195,13 @@ get_godot_version() {
 # GET PROJECT NAME FROM DIRECTORY
 ################################################################################
 
-get_project_name_from_dir() {
+# Standardname für --init: config/name aus der project.godot, klein und ohne Leerzeichen.
+get_default_project_name() {
     local dir=$1
-    basename "$dir"
+    local name
+    name=$(sed -n 's/^config\/name="\(.*\)"$/\1/p' "$dir/project.godot" | head -1)
+    [ -n "$name" ] || name=$(basename "$dir")
+    echo "$name" | tr '[:upper:] ' '[:lower:]_'
 }
 
 ################################################################################
@@ -193,9 +212,16 @@ generate_default_config() {
     # Deklaration getrennt: "local x=$(...)" liefert immer 0 und verdeckt den Fehler der Suche.
     local project_dir
     project_dir=$(find_project_directory) || return 1
-    local project_name=$(get_project_name_from_dir "$project_dir")
-    local godot_path=$(detect_godot_executable) || godot_path="/path/to/godot"
-    local godot_version=$(get_godot_version "$godot_path") || godot_version="4.6"
+
+    if [ -f "$project_dir/build_config.json" ]; then
+        log_error "$project_dir/build_config.json already exists, not overwriting it"
+        return 1
+    fi
+
+    local project_name=$(get_default_project_name "$project_dir")
+    local godot_path godot_version
+    godot_path=$(detect_godot_executable) || godot_path="/path/to/godot"
+    godot_version=$(get_godot_version "$godot_path") || godot_version="4.6"
     local os=$(detect_os)
     
     local default_profile=""
@@ -416,11 +442,62 @@ generate_output_filename() {
 }
 
 ################################################################################
+# READ EXPORT PRESET
+################################################################################
+
+# Liest einen Wert eines Presets aus der export_presets.cfg (auch aus dessen Abschnitt .options).
+get_preset_value() {
+    local preset=$1
+    local key=$2
+
+    WANT="name=\"$preset\"" KEY="$key=" awk '
+        /^\[preset\.[0-9]+\]$/ { active = 0 }
+        $0 == ENVIRON["WANT"] { active = 1; next }
+        active && index($0, ENVIRON["KEY"]) == 1 {
+            value = substr($0, length(ENVIRON["KEY"]) + 1)
+            gsub(/^"|"$/, "", value)
+            print value
+            exit
+        }
+    ' "$PROJECT_DIR/export_presets.cfg" 2>/dev/null
+}
+
+# Liefert die Dateiendung zur Plattform des Presets, leer bei unbekannter Plattform.
+get_output_extension() {
+    local platform=$1
+    local preset=$2
+    local arch
+
+    case "$platform" in
+        Windows*) echo ".exe" ;;
+        Linux*)
+            arch=$(get_preset_value "$preset" "binary_format/architecture")
+            echo ".${arch:-x86_64}"
+            ;;
+        Web) echo ".html" ;;
+        macOS) echo ".zip" ;;
+        Android) echo ".apk" ;;
+    esac
+}
+
+################################################################################
 # RESOLVE EXPORT PATH
 ################################################################################
 
+# Ersetzt ein führendes ~ durch das Home-Verzeichnis, jq liefert es unverändert.
+expand_home() {
+    case "$1" in
+        "~") echo "$HOME" ;;
+        "~/"*) echo "$HOME/${1#\~/}" ;;
+        *) echo "$1" ;;
+    esac
+}
+
 resolve_export_path() {
-    local export_path=$1
+    local export_path
+    export_path=$(expand_home "$1")
+    local export_root
+    export_root=$(expand_home "$EXPORT_ROOT")
     
     if [ -n "$export_path" ]; then
         # Use override path
@@ -433,12 +510,12 @@ resolve_export_path() {
         fi
     else
         # Use export_root
-        if [[ "$EXPORT_ROOT" = /* ]]; then
+        if [[ "$export_root" = /* ]]; then
             # Absolute path
-            echo "$EXPORT_ROOT"
+            echo "$export_root"
         else
             # Relative to project dir
-            echo "$PROJECT_DIR/$EXPORT_ROOT"
+            echo "$PROJECT_DIR/$export_root"
         fi
     fi
 }
@@ -518,7 +595,7 @@ execute_export() {
 
 check_export_output() {
     local build_project=$1
-    local profile_name=$2
+    local platform=$2
     
     if [ ! -f "$build_project" ]; then
         log_error "Export binary not found: $build_project"
@@ -529,7 +606,7 @@ check_export_output() {
     log_info "Export successful! Binary size: $file_size"
     
     # Make Linux binary executable
-    if [[ "$profile_name" == Linux* ]] || [ "$profile_name" = "Mac" ]; then
+    if [[ "$platform" == Linux* ]]; then
         chmod +x "$build_project"
         log_info "Made binary executable"
     fi
@@ -543,10 +620,10 @@ check_export_output() {
 
 prompt_run_binary() {
     local build_project=$1
-    local profile_name=$2
+    local platform=$2
     
     # Skip for Web
-    if [ "$profile_name" = "Web" ]; then
+    if [ "$platform" = "Web" ]; then
         return 0
     fi
     
@@ -632,6 +709,8 @@ main() {
             exit 1
         }
         log_info "Auto-detected Godot at: $GODOT_PATH"
+    else
+        GODOT_PATH=$(resolve_godot_path "$GODOT_PATH")
     fi
     
     # Verify Godot version
@@ -694,18 +773,32 @@ main() {
             fi
         fi
         
-        # Add suffix and extension
-        if [[ "$PROFILE_NAME" == Windows* ]]; then
-            BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}.exe"
-        elif [[ "$PROFILE_NAME" == Linux* ]]; then
-            BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}.x86_64"
-        elif [ "$PROFILE_NAME" = "Web" ]; then
-            BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}"
-        else
-            BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}"
+        # Plattform und Endung kommen aus dem Preset, sein Name ist frei wählbar.
+        PRESET_PLATFORM=$(get_preset_value "$PROFILE_NAME" "platform")
+        if [ -z "$PRESET_PLATFORM" ]; then
+            log_error "Preset '$PROFILE_NAME' not found in export_presets.cfg"
+            exit 99
         fi
-        
+        OUTPUT_EXTENSION=$(get_output_extension "$PRESET_PLATFORM" "$PROFILE_NAME")
+        if [ -z "$OUTPUT_EXTENSION" ]; then
+            log_warn "No known file extension for platform: $PRESET_PLATFORM"
+        fi
+
+        BUILD_BASE="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}"
+        BUILD_BIN="${BUILD_BASE}${OUTPUT_EXTENSION}"
+
         BUILD_PROJECT="$PROFILE_FOLDER/$BUILD_BIN"
+
+        # Web: eigener Ordner je Build mit index.html, so wie itch.io und GitHub Pages es erwarten.
+        # Das Log bleibt außerhalb, damit es nicht mit hochgeladen wird.
+        if [ "$PRESET_PLATFORM" = "Web" ]; then
+            BUILD_BIN="index.html"
+            BUILD_PROJECT="$PROFILE_FOLDER/$BUILD_BASE/$BUILD_BIN"
+            mkdir -p "$PROFILE_FOLDER/$BUILD_BASE" || {
+                log_error "Failed to create web export directory"
+                exit 99
+            }
+        fi
         BUILD_LOG="$PROFILE_FOLDER/${PROJECT_NAME}_export.log.txt"
         
         log_info "Output binary: $BUILD_BIN"
@@ -719,13 +812,13 @@ main() {
         fi
         
         # Verify
-        if ! check_export_output "$BUILD_PROJECT" "$PROFILE_NAME"; then
+        if ! check_export_output "$BUILD_PROJECT" "$PRESET_PLATFORM"; then
             exit 99
         fi
         
         # Offer to run
         if [ $PROFILE_COUNT -eq 1 ]; then
-            prompt_run_binary "$BUILD_PROJECT" "$PROFILE_NAME"
+            prompt_run_binary "$BUILD_PROJECT" "$PRESET_PLATFORM"
         fi
         
         echo ""

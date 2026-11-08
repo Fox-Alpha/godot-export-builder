@@ -236,3 +236,15 @@ Verfügbar in `build.output_filename` und `profiles[].output_filename`:
 {project}_{type}
 → MeinSpiel_debug
 ```
+
+## Web-Export
+
+Presets mit der Plattform `Web` landen in einem eigenen Ordner je Build, mit `index.html` als Einstieg:
+
+```text
+builds/Web/<dateiname>/index.html
+```
+
+Diesen Ordner können GitHub Pages und (als ZIP) itch.io direkt ausliefern. Das Export-Log liegt eine Ebene darüber und
+wird nicht mit hochgeladen. Da beide Dienste die nötigen Cross-Origin-Header nicht oder nur optional setzen, im Preset
+`variant/thread_support=false` verwenden.
