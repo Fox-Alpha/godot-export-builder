@@ -521,7 +521,7 @@ check_export_output() {
     log_info "Export successful! Binary size: $file_size"
     
     # Make Linux binary executable
-    if [ "$profile_name" = "Linux" ] || [ "$profile_name" = "Mac" ]; then
+    if [[ "$profile_name" == Linux* ]] || [ "$profile_name" = "Mac" ]; then
         chmod +x "$build_project"
         log_info "Made binary executable"
     fi
@@ -687,9 +687,9 @@ main() {
         fi
         
         # Add suffix and extension
-        if [ "$PROFILE_NAME" = "Windows" ]; then
+        if [[ "$PROFILE_NAME" == Windows* ]]; then
             BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}.exe"
-        elif [ "$PROFILE_NAME" = "Linux" ]; then
+        elif [[ "$PROFILE_NAME" == Linux* ]]; then
             BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}.x86_64"
         elif [ "$PROFILE_NAME" = "Web" ]; then
             BUILD_BIN="${GENERATED_FILENAME}${suffix_separator}${VERSION_SUFFIX}"
