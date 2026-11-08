@@ -376,6 +376,11 @@ check_project_directory() {
 # GENERATE OUTPUT FILENAME
 ################################################################################
 
+# Liest die Spielversion (config/version) aus der project.godot.
+get_project_version() {
+    sed -n 's/^config\/version="\(.*\)"$/\1/p' "$PROJECT_DIR/project.godot" | head -1
+}
+
 generate_output_filename() {
     local template=$1
     local profile_name=$2
@@ -387,6 +392,9 @@ generate_output_filename() {
     # Replace placeholders
     filename="${filename//\{project\}/$PROJECT_NAME}"
     filename="${filename//\{version_suffix\}/$VERSION_SUFFIX}"
+    local project_version
+    project_version=$(get_project_version)
+    filename="${filename//\{version\}/${project_version:-unknown}}"
     filename="${filename//\{platform\}/$platform}"
     filename="${filename//\{os\}/$(detect_os_short)}"
     filename="${filename//\{godot_version\}/${GODOT_VERSION:-unknown}}"
