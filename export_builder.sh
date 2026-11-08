@@ -185,9 +185,13 @@ get_godot_version() {
 # GET PROJECT NAME FROM DIRECTORY
 ################################################################################
 
-get_project_name_from_dir() {
+# Standardname für --init: config/name aus der project.godot, klein und ohne Leerzeichen.
+get_default_project_name() {
     local dir=$1
-    basename "$dir"
+    local name
+    name=$(sed -n 's/^config\/name="\(.*\)"$/\1/p' "$dir/project.godot" | head -1)
+    [ -n "$name" ] || name=$(basename "$dir")
+    echo "$name" | tr '[:upper:] ' '[:lower:]_'
 }
 
 ################################################################################
@@ -198,7 +202,7 @@ generate_default_config() {
     # Deklaration getrennt: "local x=$(...)" liefert immer 0 und verdeckt den Fehler der Suche.
     local project_dir
     project_dir=$(find_project_directory) || return 1
-    local project_name=$(get_project_name_from_dir "$project_dir")
+    local project_name=$(get_default_project_name "$project_dir")
     local godot_path=$(detect_godot_executable) || godot_path="/path/to/godot"
     local godot_version=$(get_godot_version "$godot_path") || godot_version="4.6"
     local os=$(detect_os)
