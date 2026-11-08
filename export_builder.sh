@@ -788,6 +788,17 @@ main() {
         BUILD_BIN="${BUILD_BASE}${OUTPUT_EXTENSION}"
 
         BUILD_PROJECT="$PROFILE_FOLDER/$BUILD_BIN"
+
+        # Web: eigener Ordner je Build mit index.html, so wie itch.io und GitHub Pages es erwarten.
+        # Das Log bleibt außerhalb, damit es nicht mit hochgeladen wird.
+        if [ "$PRESET_PLATFORM" = "Web" ]; then
+            BUILD_BIN="index.html"
+            BUILD_PROJECT="$PROFILE_FOLDER/$BUILD_BASE/$BUILD_BIN"
+            mkdir -p "$PROFILE_FOLDER/$BUILD_BASE" || {
+                log_error "Failed to create web export directory"
+                exit 99
+            }
+        fi
         BUILD_LOG="$PROFILE_FOLDER/${PROJECT_NAME}_export.log.txt"
         
         log_info "Output binary: $BUILD_BIN"
