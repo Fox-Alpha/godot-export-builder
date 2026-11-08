@@ -98,6 +98,11 @@ search_upwards_for_project() {
             echo "$check_dir"
             return 0
         fi
+        # Standardstruktur: Das Godot-Projekt liegt im Unterordner src/.
+        if [ -f "$check_dir/src/project.godot" ]; then
+            echo "$check_dir/src"
+            return 0
+        fi
         check_dir=$(dirname "$check_dir")
     done
 
